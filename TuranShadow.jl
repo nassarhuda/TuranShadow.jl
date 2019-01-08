@@ -13,7 +13,6 @@ end
 
 function density(c::Vector{Int},A::SparseMatrixCSC{F,Int64}) where F <: Real
     edges = sum(view(A,c,c))
-    # edges = sum(A[c,c])
     vi = length(c)
     d = edges/(vi*(vi-1))
 end
@@ -31,10 +30,8 @@ function create_shadows(A::SparseMatrixCSC{F,Int},k::Int) where F <: Real
         rpi = rp[v]:rp[v+1]-1
         Ci = ci[rpi]
         Vi = Ci[ind[Ci]]
-        # Vi = setdiff(Ci,newlabels[1:i-1])
         l = k-1
         if length(Vi) >= l
-            # T[ti] = OneShadow(Vi,l)
             push!(T,OneShadow(Vi,l))
             ti += 1
         end
@@ -55,10 +52,8 @@ function create_shadows_subset(A::SparseMatrixCSC{F,Int},k::Int,vertices::Vector
         rpi = rp[v]:rp[v+1]-1
         Ci = ci[rpi] # all neighbors
         Wi = Ci[ind[Ci]] # all neighbors we can connect to
-        # Vi = setdiff(Ci,newlabels[1:i-1])
         l = k-1
         if length(Wi) >= l
-            # T[ti] = OneShadow(Vi,l)
             Vi = vertices[Wi]
             push!(T,OneShadow(Vi,l))
             ti += 1
@@ -122,14 +117,13 @@ function shadow_finder(A::SparseMatrixCSC{F,Int},k::Int) where F <: Real
         vertices = currentShadow.vertices
         l = currentShadow.k
         d = density(vertices,A)
-        ### special case here
+        # special case here
         if d > 1-(1/(l-1))
             push!(S,currentShadow)
         else
             # contruct dag of G-v
             Ap = A[vertices,vertices]
             Tcurrent = create_shadows_subset(Ap,l,vertices)
-            # Tcurrent = create_shadows_view(Ap,l,vertices)
             for j = 1:length(Tcurrent)
                 Ti = pop!(Tcurrent)
                 Vi = Ti.vertices
@@ -163,16 +157,12 @@ function sample_shadow(A::SparseMatrixCSC{F,Int64},S::Vector{OneShadow},k::Int,t
         w[i] = binomial(length(Si.vertices),Si.k)
     end
     sweight = sum(w)
-    # p = w./sweight
     X = ones(Bool,t)
-    # all_ids = wsample(1:length(w),w,t)
     all_ids = wsample(1:length(w),Float64.(w),t)
     for r = 1:t
         id = all_ids[r] #mysample(p)
         Si = S[id]
         ltuple = sample(Si.vertices,Si.k;replace=false) # need without replacement
-        # ltuple = rand(Si.vertices,Si.k)
-        # @time isclique(ltuple,A)
         if isclique(ltuple,A)
             X[r] = 1
         else
