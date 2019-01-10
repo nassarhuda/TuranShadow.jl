@@ -15,10 +15,11 @@ Sample run (from julia client):
 using NumbersFromText 
 include("TuranShadow.jl")
 
-M = readmatrix(Int,"loc-gowalla_edges.txt")
+M = readmatrix(Int,"as-skitter.txt")
 M .+= 1
-A = sparse(M[:,1],M[:,2],1) # adjacency matrix of the graph
+A = sparse(M[:,1],M[:,2],1,maximum(M),maximum(M)) 
+A = max.(A,A') # adjacency matrix of the graph
 k = 5 # size of clique
 t = 50000 # number of samples
-TuranShadow(A,k,t)
+@time TuranShadow(A,k,t)
 ```
