@@ -9,7 +9,7 @@ Sample run (from julia client):
 ;wget https://snap.stanford.edu/data/loc-gowalla_edges.txt.gz
 
 #unzip the data
-;gunzip -c loc-gowalla_edges.txt.gz
+;gunzip -k loc-gowalla_edges.txt.gz
 
 #if package doesn't exist yet: `using Pkg; Pkg.clone("https://github.com/dgleich/NumbersFromText.jl")`
 using NumbersFromText 
