@@ -9,7 +9,7 @@ using MatrixNetworks
 using StatsBase
 
 struct OneShadow
-    parent::Int
+    parents::Vector{Int}
     vertices::Vector{Int}
     k::Int
 end
@@ -35,9 +35,9 @@ function create_shadows!(A::SparseMatrixCSC{F,Int},k::Int,S::Vector{OneShadow}) 
         l = k-1
         if length(Vi) >= l
             if density(Vi,A) > 1-(1/(l-1))
-                push!(S,OneShadow(v,Vi,l))
+                push!(S,OneShadow([v],Vi,l))
             else
-                push!(T,OneShadow(v,Vi,l))
+                push!(T,OneShadow([v],Vi,l))
             end
         end
         ind[v] = false # can no longer add it
@@ -46,7 +46,7 @@ function create_shadows!(A::SparseMatrixCSC{F,Int},k::Int,S::Vector{OneShadow}) 
 end
 
 function create_shadows_view!(A::SparseMatrixCSC{F,Int},k::Int,vertices::Vector{Int},T::Set{OneShadow},
-    S::Vector{OneShadow},newlabels::Vector{Int}) where F <: Real
+    S::Vector{OneShadow},newlabels::Vector{Int},curp::Vector{Int}) where F <: Real
     vn = length(vertices)
     ind = ones(Bool,vn)
     V = view(A,vertices,vertices)
@@ -60,11 +60,12 @@ function create_shadows_view!(A::SparseMatrixCSC{F,Int},k::Int,vertices::Vector{
         if length(Wi) >= k-1
             Vi = vertices[Wi]
             vi = vertices[v]
+            curp = vcat(curp,vi)
             #####
             if k <=2 || density(Vi,A) > 1-(1/(k-2))
-                push!(S,OneShadow(vi,Vi,k-1))
+                push!(S,OneShadow(curp,Vi,k-1))
             else
-                push!(T,OneShadow(vi,Vi,k-1))
+                push!(T,OneShadow(curp,Vi,k-1))
             end
             #####
             # push!(T,OneShadow(Vi,l))
@@ -80,7 +81,8 @@ function shadow_finder(A::SparseMatrixCSC{F,Int},k::Int) where F <: Real
         currentShadow = pop!(T)
         vertices = currentShadow.vertices
         l = currentShadow.k
-        create_shadows_view!(A,l,vertices,T,S,newlabels)
+        curp = currentShadow.parents
+        create_shadows_view!(A,l,vertices,T,S,newlabels,curp)
         # create_shadows_view!(A,currentShadow.k,currentShadow.vertices,T,S)
     end
     return S
@@ -112,10 +114,8 @@ function sample_shadow(A::SparseMatrixCSC{F,Int64},S::Vector{OneShadow},k::Int,t
         ltuple = sample(Si.vertices,Si.k;replace=false) # need without replacement
         if isclique(ltuple,A)
             X[r] = 1
-            if length(ltuple)==k-1
-                push!(ltuple,Si.parent)
-                push!(clique_sets,ltuple)
-            end
+            ltuple = vcat(ltuple,Si.parents)
+            push!(clique_sets,ltuple)
         else
             X[r] = 0
         end
