@@ -13,6 +13,7 @@ using Plots
 using GraphRecipes
 using NearestNeighbors
 include("TuranShadow.jl")
+include("n2v.jl")
 
 using Plots
 pyplot()
