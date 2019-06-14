@@ -56,7 +56,8 @@ function visualize_all(filename,A,displayedges;labels=[],TSfunction=x->x,fromk=3
     savefig(join([filename,"_N2V.png"]))
     alltimes[3+4+4+1] = curtime
 
-    plot(alltimes,xlabels=["L(A)", "DRL", "L(TS(A))", "L(A)-1", "L(A)-2", "L(A)-3", "L(A)-4", "L(TS(A)-1", "L(TS(A)-2", "L(TS(A)-3", "L(TS(A)-4"])
+    plot(alltimes,xticks=(1:length(alltimes),
+        ["L(A)", "DRL", "L(TS(A))", "L(A)-1", "L(A)-2", "L(A)-3", "L(A)-4", "L(TS(A)-1", "L(TS(A)-2", "L(TS(A)-3", "L(TS(A)-4"]))
     savefig(join([filename,"_alltimes.png"]))
 
     return alltimes
