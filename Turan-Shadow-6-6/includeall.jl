@@ -223,11 +223,8 @@ function TuranShadow_matrix(A::SparseMatrixCSC{T},myfn,from_k,upto_k,scaleA,t) w
     for k = from_k:upto_k
         approxval,clique_sets = TuranShadow(A,k,t)
 
-        approxval,clique_sets = TuranShadow(A,k,t)
-        csets_new = copy(clique_sets)
-        map(i->csets_new[i] = sort(csets_new[i]),1:length(csets_new))
-        csets_new = unique(csets_new)
-        clique_sets = copy(csets_new)
+        map!(i->sort(clique_sets[i]),clique_sets,1:length(clique_sets))
+        clique_sets = unique(clique_sets)
 
         # map!(i->sort(clique_sets[i]),clique_sets,1:length(clique_sets))
         # clique_sets = unique(clique_sets)
