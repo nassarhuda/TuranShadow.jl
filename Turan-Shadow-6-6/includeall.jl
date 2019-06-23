@@ -14,6 +14,7 @@ using GraphRecipes
 using NearestNeighbors
 include("TuranShadow.jl")
 include("n2v.jl")
+include("draw_neighboring_nodes.jl")
 
 using Plots
 pyplot()
@@ -176,17 +177,25 @@ end
 
 function TuranShadow_layout(A::SparseMatrixCSC{T},myfn,from_k,upto_k,scaleA,t) where T
     GW = spzeros(size(A)...)
+    # refcliquesets = []
     for k = from_k:upto_k
         approxval,clique_sets = TuranShadow(A,k,t)
-        csets_new = copy(clique_sets)
-        map(i->csets_new[i] = sort(csets_new[i]),1:length(csets_new))
-        csets_new = unique(csets_new)
-        clique_sets = copy(csets_new)
+
+        map!(i->sort(clique_sets[i]),clique_sets,1:length(clique_sets))
+        clique_sets = unique(clique_sets)
+
+        # csets_new = copy(clique_sets)
+        # map(i->clique_sets[i] = sort(clique_sets[i]),1:length(clique_sets))
+        # map!(i->sort(clique_sets[i]),clique_sets,1:length(clique_sets))
+        # clique_sets = unique(clique_sets)
+        # clique_sets = copy(csets_new)
         
         if approxval == 0
             @warn "largest clique size found is $(k-1)"
             break
         end
+
+        # refcliquesets = vcat(refcliquesets,clique_sets)
         ei,ej = create_C(clique_sets)
         C = sparse(ei,ej,1,length(clique_sets),A.n)
         W = C'*C
@@ -194,6 +203,13 @@ function TuranShadow_layout(A::SparseMatrixCSC{T},myfn,from_k,upto_k,scaleA,t) w
         W = W - spdiagm(0=>diag(W))
         GW += W #GW = max.(W,GW) #instead of GW += W
     end
+
+    # ei,ej = create_C(clique_sets)
+    # C = sparse(ei,ej,1,length(clique_sets),A.n)
+    # W = C'*C
+    # W = myfn(k)*W
+    # W = W - spdiagm(0=>diag(W))
+    # GW += W #GW = max.(W,GW) #instead of GW += W
 
     GW += scaleA*A
     
@@ -206,10 +222,20 @@ function TuranShadow_matrix(A::SparseMatrixCSC{T},myfn,from_k,upto_k,scaleA,t) w
     GW = spzeros(size(A)...)
     for k = from_k:upto_k
         approxval,clique_sets = TuranShadow(A,k,t)
+
+        approxval,clique_sets = TuranShadow(A,k,t)
         csets_new = copy(clique_sets)
         map(i->csets_new[i] = sort(csets_new[i]),1:length(csets_new))
         csets_new = unique(csets_new)
         clique_sets = copy(csets_new)
+
+        # map!(i->sort(clique_sets[i]),clique_sets,1:length(clique_sets))
+        # clique_sets = unique(clique_sets)
+
+        # csets_new = copy(clique_sets)
+        # map(i->csets_new[i] = sort(csets_new[i]),1:length(csets_new))
+        # csets_new = unique(csets_new)
+        # clique_sets = copy(csets_new)
         
         if approxval == 0
             @warn "largest clique size found is $(k-1)"
@@ -227,8 +253,6 @@ function TuranShadow_matrix(A::SparseMatrixCSC{T},myfn,from_k,upto_k,scaleA,t) w
     
     dropzeros!(GW)
     return GW
-#     x2,x3,l = x2_x3_from_spectral_embedding(GW)
-#     xy = hcat(x2,x3)
 end
 
 function quick_scatter(xy,labels,labelsgt)
