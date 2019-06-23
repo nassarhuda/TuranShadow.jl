@@ -1,8 +1,8 @@
 ## getting started
 To run this code, you need one more piece
-clone the repo `https://github.com/snap-stanford/snap` under `SNAP_directory`    
-The two files to add/change are provided in this repo under `SNAP_directory/snap/examples/node2vec`    
-Then `cd SNAP_directory/snap/examples/node2vec` and run `make`   
+- clone the repo `https://github.com/snap-stanford/snap` under `SNAP_directory`    
+- The two files to add/change are provided in this repo under `SNAP_directory/snap/examples/node2vec`    
+- Then `cd SNAP_directory/snap/examples/node2vec` and run `make`   
 
 ## sample run
 check `sample_run.jl` or `sample_run.ipynb` for a few datasets ready to run
