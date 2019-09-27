@@ -2,12 +2,26 @@
 # https://pdfs.semanticscholar.org/be7e/4c447ea27e0891397ae36d8957d3cbcea613.pdf
 using Random
 
-function evaluate_drawing(A,xy)
+function evaluate_drawing(A,xy,pair_nodes)
 	# return [metric_crossings(A,xy),metric_nearest_neighbors(A,xy),metric_randomwalks(A,2,2,xy,100,20)]
 	# bb = metric_bfs_search(A,xy)
-	return [metric_fartheset_neighbors(A,xy),metric_nearest_neighbors(A,xy),metric_randomwalks(A,xy,100,20)]
+	Ken,Spe = pairwise_distance(A,pair_nodes,xy)
+	return [Ken,Spe,metric_nearest_neighbors(A,xy),metric_nearest_neighbors_weighted(A,xy),metric_randomwalks(A,xy,100,20)]
 	# return [0,0,0]
 end
+
+function random_walk(A::SparseMatrixCSC{T,Int64},u::Int,walk_length::Int;seed::Int=-1) where T
+    visited = Vector{Int}(undef,walk_length)
+    visited[1] = u
+    currentnode = u
+    for i = 2:walk_length
+        currentnode = rand(view(A.rowval,A.colptr[currentnode]:A.colptr[currentnode+1]-1))
+        visited[i] = currentnode
+    end
+    return visited
+end
+
+
 ### 1. want as little edge crossings as possible.
 # refer to figures belonging to metric 1 in this paper: https://pdfs.semanticscholar.org/be7e/4c447ea27e0891397ae36d8957d3cbcea613.pdf
 ccw(P1,P2,P3) = (P3[2]-P1[2]) * (P2[1]-P1[1]) > (P2[2]-P1[2]) * (P3[1]-P1[1])
@@ -61,27 +75,62 @@ function metric_nearest_neighbors(A,xy)
 	kdtree = KDTree(data)
 	curratio = 0
 
-	if n>900
-		sp = sortperm(degs,rev=false)
-		nodestotest1 = sp[1:300]
-		nodestotest2 = div(n,2)-150:div(n,2)+150
-		nodestotest3 = sp[end-300+1:end]
-		nodestotest = vcat(nodestotest1,nodestotest2,nodestotest3)
-	else
+	# if n>900
+	# 	sp = sortperm(degs,rev=false)
+	# 	nodestotest1 = sp[1:300]
+	# 	nodestotest2 = div(n,2)-150:div(n,2)+150
+	# 	nodestotest3 = sp[end-300+1:end]
+	# 	nodestotest = vcat(nodestotest1,nodestotest2,nodestotest3)
+	# else
 		nodestotest = 1:n
-	end
+	# end
 
 	for i in nodestotest #1:n
 		# @show i
 		d = degs[i] + 1 #because the node itself will turn out
 		point = xy[i,:]
-        idxs, dists = knn(kdtree, point, floor(Int,multfactor*d), true)
-        true_neighbors = A[i,:].nzind
-        deduced_neignbors = idxs
-        correct_deduced_neighbors = length(Base.intersect(true_neighbors,deduced_neignbors))
+		idxs, dists = knn(kdtree, point, Int(d), true)
+		true_neighbors = A.rowval[A.colptr[i]:A.colptr[i+1]-1]   
+		# true_neighbors = A[i,:].nzind
+		# deduced_neignbors = idxs
+        correct_deduced_neighbors = length(Base.intersect(true_neighbors,idxs))
         curratio += correct_deduced_neighbors/(d-1)
+        # @show i, correct_deduced_neighbors/(d-1)
     end
     return curratio/n
+end
+
+function metric_nearest_neighbors_weighted(A,xy)
+	multfactor = 1
+	degs = sum(A,dims=2)[:]
+	n = size(A,1)
+	data = copy(xy')
+	kdtree = KDTree(data)
+	curratio = 0
+	allweights = degs./sum(degs)
+	# if n>900
+	# 	sp = sortperm(degs,rev=false)
+	# 	nodestotest1 = sp[1:300]
+	# 	nodestotest2 = div(n,2)-150:div(n,2)+150
+	# 	nodestotest3 = sp[end-300+1:end]
+	# 	nodestotest = vcat(nodestotest1,nodestotest2,nodestotest3)
+	# else
+		nodestotest = 1:n
+	# end
+
+	for i in nodestotest #1:n
+		# @show i
+		d = degs[i] + 1 #because the node itself will turn out
+		point = xy[i,:]
+		idxs, dists = knn(kdtree, point, Int(d), true)
+		true_neighbors = A.rowval[A.colptr[i]:A.colptr[i+1]-1]   
+		# true_neighbors = A[i,:].nzind
+		# deduced_neignbors = idxs
+        correct_deduced_neighbors = length(Base.intersect(true_neighbors,idxs))
+        curratio += allweights[i]*correct_deduced_neighbors/(d-1)
+        # @show i, correct_deduced_neighbors/(d-1)
+    end
+    return curratio
 end
 
 function metric_fartheset_neighbors(A,xy)
@@ -96,15 +145,15 @@ function metric_fartheset_neighbors(A,xy)
 	# nodestotest = randperm(n)[1:ntest]
 
 	# degs = sum(A,dims=2)[:]
-	if n>900
-		sp = sortperm(degs,rev=false)
-		nodestotest1 = sp[1:300]
-		nodestotest2 = div(n,2)-150:div(n,2)+150
-		nodestotest3 = sp[end-300+1:end]
-		nodestotest = vcat(nodestotest1,nodestotest2,nodestotest3)
-	else
+	# if n>900
+	# 	sp = sortperm(degs,rev=false)
+	# 	nodestotest1 = sp[1:300]
+	# 	nodestotest2 = div(n,2)-150:div(n,2)+150
+	# 	nodestotest3 = sp[end-300+1:end]
+	# 	nodestotest = vcat(nodestotest1,nodestotest2,nodestotest3)
+	# else
 		nodestotest = 1:n
-	end
+	# end
 
 	for i in nodestotest #1:n
 		# @show i
@@ -127,25 +176,25 @@ function metric_fartheset_neighbors(A,xy)
     return curratio/n
 end
 
-function metric_nearest_neighbors_weighted(A,xy)
-	multfactor = 1
-	degs = sum(A,dims=2)[:]
-	n = size(A,1)
-	data = copy(xy')
-	kdtree = KDTree(data)
-	curratio = 0
-	allweights = degs./sum(degs)
-	for i in 1:n
-		d = degs[i] + 1 #because the node itself will turn out
-		point = xy[i,:]
-        idxs, dists = knn(kdtree, point, floor(Int,multfactor*d), true)
-        true_neighbors = A[i,:].nzind
-        deduced_neignbors = idxs
-        correct_deduced_neighbors = length(Base.intersect(true_neighbors,deduced_neignbors))
-        curratio += allweights[i]*correct_deduced_neighbors/(d-1)
-    end
-    return curratio/n
-end
+# function metric_nearest_neighbors_weighted(A,xy)
+# 	multfactor = 1
+# 	degs = sum(A,dims=2)[:]
+# 	n = size(A,1)
+# 	data = copy(xy')
+# 	kdtree = KDTree(data)
+# 	curratio = 0
+# 	allweights = degs./sum(degs)
+# 	for i in 1:n
+# 		d = degs[i] + 1 #because the node itself will turn out
+# 		point = xy[i,:]
+#         idxs, dists = knn(kdtree, point, floor(Int,multfactor*d), true)
+#         true_neighbors = A[i,:].nzind
+#         deduced_neignbors = idxs
+#         correct_deduced_neighbors = length(Base.intersect(true_neighbors,deduced_neignbors))
+#         curratio += allweights[i]*correct_deduced_neighbors/(d-1)
+#     end
+#     return curratio
+# end
 
 ### 3. random walks stuff
 # idea is: pick a node, start k random walks from that node
@@ -177,6 +226,14 @@ function distance_between_point_points_pmap(onepoint,all_points)
 	return alldists
 end
 
+function pairwise_distance(A,pair_nodes,xy)
+	bfs_distances = pmap(i->bfs(A,pair_nodes[i,1],pair_nodes[i,2])[1][pair_nodes[i,2]],1:size(pair_nodes,1))
+	xy_distances = (xy[pair_nodes[:,1],1] - xy[pair_nodes[:,2],1]).^2 + (xy[pair_nodes[:,1],2] - xy[pair_nodes[:,2],2]).^2
+	shortestpath = bfs_distances./sum(bfs_distances)
+	geo = xy_distances./sum(xy_distances)
+	return corkendall(geo,shortestpath),corspearman(geo,shortestpath)
+end
+
 
 function findall_distances(xy)
 	D = zeros(size(xy,1),size(xy,1))
@@ -188,7 +245,71 @@ function findall_distances(xy)
 	D = max.(D,D')
 end
 
-# function metric_randomwalks(A,p,q,xy,nwalks,walk_length)
+function metric_randomwalks_efficient(A,xy,nwalks,walk_length)
+	multfactor = 1
+	n = size(A,1)
+
+	data = copy(xy')
+	kdtree = KDTree(data)
+
+	neighbornodes = zeros(Int,nwalks)
+	curratio = 0
+	navgby = 0
+
+	# degs = sum(A,dims=2)[:]
+	# if n>900
+	# 	sp = sortperm(degs,rev=false)
+	# 	nodestotest1 = sp[1:300]
+	# 	nodestotest2 = div(n,2)-150:div(n,2)+150
+	# 	nodestotest3 = sp[end-300+1:end]
+	# 	nodestotest = vcat(nodestotest1,nodestotest2,nodestotest3)
+	# else
+		nodestotest = 1:n
+	# end
+
+	nodeson_randomwalk = zeros(walk_length,nwalks)
+	@inbounds for node in nodestotest #1:n
+		# @show node, n
+		@inbounds for i = 1:nwalks
+			# newids = unique(Node2Vec.node2vec_walk(G, node, walk_length,1,1))#2,2)
+			# newids = randomwalk(G,node,walk_length)#*degs[node])
+			# newids = random_walk(A,node,walk_length)
+			# @time node_counters[random_walk(A,node,walk_length)] .+= 1
+			nodeson_randomwalk[:,i] = random_walk(A,node,walk_length)
+		end
+
+		id = 1
+		for ri in eachrow(nodeson_randomwalk)
+			if length(unique(ri))==1
+				neighbornodes[id] = ri[1]
+				id += 1
+			end
+		end
+		d = id-1
+
+		if d > 1 # there is something to find, otherwise, just skip
+		# @show node,"entered"
+			# d = degs[i] + 1 #because the node itself will turn out
+			# point .= xy[node,:]
+	        idxs, dists = knn(kdtree, xy[node,:], d, true)
+	        # true_neighbors = A[i,:].nzind
+	        # deduced_neignbors = idxs[2:end] # because the node itself is number 1
+	        # @time correct_deduced_neighbors = length(Base.intersect(neighbornodes,idxs[2:end]))
+	        # @show node, d, correct_deduced_neighbors/(d-1)
+	        curratio += length(Base.intersect(neighbornodes[1:d],idxs[2:end]))/(d-1)
+			# found_neighbors_dist = sum(D[node,neighbornodes])
+			# close_neighbors_dist = sum(sort(D[:,node])[1:length(neighbornodes)])
+			# acum_ratios += close_neighbors_dist/found_neighbors_dist
+			navgby += 1
+		end
+		# node_counters .= 0
+		neighbornodes .= 0
+	end
+	return curratio/navgby
+end
+
+
+
 function metric_randomwalks(A,xy,nwalks,walk_length)
 	multfactor = 1
 	# G = SimpleWeightedGraph(A)
@@ -206,16 +327,16 @@ function metric_randomwalks(A,xy,nwalks,walk_length)
 	ntest = min(n,900)
 	# nodestotest = randperm(n)[1:ntest]
 
-	degs = sum(A,dims=2)[:]
-	if n>900
-		sp = sortperm(degs,rev=false)
-		nodestotest1 = sp[1:300]
-		nodestotest2 = div(n,2)-150:div(n,2)+150
-		nodestotest3 = sp[end-300+1:end]
-		nodestotest = vcat(nodestotest1,nodestotest2,nodestotest3)
-	else
+	# degs = sum(A,dims=2)[:]
+	# if n>900
+		# sp = sortperm(degs,rev=false)
+		# nodestotest1 = sp[1:300]
+		# nodestotest2 = div(n,2)-150:div(n,2)+150
+		# nodestotest3 = sp[end-300+1:end]
+		# nodestotest = vcat(nodestotest1,nodestotest2,nodestotest3)
+	# else
 		nodestotest = 1:n
-	end
+	# end
 
 	for node in nodestotest #1:n
 		# @show node
@@ -245,6 +366,80 @@ function metric_randomwalks(A,xy,nwalks,walk_length)
 	end
 	return curratio/navgby
 end
+# function metric_randomwalks(A,p,q,xy,nwalks,walk_length)
+# function metric_randomwalks(A,xy,nwalks,walk_length)
+# 	multfactor = 1
+# 	# G = SimpleWeightedGraph(A)
+# 	# G = SimpleGraph(A)
+# 	n = size(A,1)
+
+# 	data = copy(xy')
+# 	kdtree = KDTree(data)
+
+# 	node_counters = zeros(Int,n)
+# 	# neighbornodes = zeros(Int,nwalks)
+# 	curratio = 0
+# 	navgby = 0
+
+# 	# D = findall_distances(xy)
+# 	# ntest = min(n,900)
+# 	# nodestotest = randperm(n)[1:ntest]
+
+# 	# degs = sum(A,dims=2)[:]
+# 	# if n>900
+# 	# 	sp = sortperm(degs,rev=false)
+# 	# 	nodestotest1 = sp[1:300]
+# 	# 	nodestotest2 = div(n,2)-150:div(n,2)+150
+# 	# 	nodestotest3 = sp[end-300+1:end]
+# 	# 	nodestotest = vcat(nodestotest1,nodestotest2,nodestotest3)
+# 	# else
+# 		nodestotest = 1:n
+# 	# end
+
+# 	nodeson_randomwalk = zeros(walk_length,nwalks)
+# 	@inbounds for node in 1:100 #nodestotest #1:n
+# 		@show node, n
+# 		@inbounds for i = 1:nwalks
+# 			# newids = unique(Node2Vec.node2vec_walk(G, node, walk_length,1,1))#2,2)
+# 			# newids = randomwalk(G,node,walk_length)#*degs[node])
+# 			# newids = random_walk(A,node,walk_length)
+# 			@time node_counters[random_walk(A,node,walk_length)] .+= 1
+# 			# nodeson_randomwalk[:,i] = random_walk(A,node,walk_length)
+# 		end
+
+# 		# id = 1
+# 	 #   for ri in eachrow(nodeson_randomwalk)
+#   #      		if length(unique(ri))==1
+#   #      			neighbornodes[id] = ri[1]
+#   #      			id += 1
+#   #      		end
+#   #      end
+#   #      d = id-1
+
+# 		@time neighbornodes = findall(node_counters.>= nwalks) # >= nwalks/2
+# 		d = length(neighbornodes) #d is 1+whatever other nodes there are -- it is atleast 1 because the node itself will show up
+		
+
+# 		if d > 1 # there is something to find, otherwise, just skip
+# 		# @show node,"entered"
+# 			# d = degs[i] + 1 #because the node itself will turn out
+# 			# point .= xy[node,:]
+# 	        @time idxs, dists = knn(kdtree, xy[node,:], floor(Int,multfactor*d), true)
+# 	        # true_neighbors = A[i,:].nzind
+# 	        # deduced_neignbors = idxs[2:end] # because the node itself is number 1
+# 	        @time correct_deduced_neighbors = length(Base.intersect(neighbornodes,idxs[2:end]))
+# 	        # @show node, d, correct_deduced_neighbors/(d-1)
+# 	        @time curratio += correct_deduced_neighbors/(d-1)
+# 			# found_neighbors_dist = sum(D[node,neighbornodes])
+# 			# close_neighbors_dist = sum(sort(D[:,node])[1:length(neighbornodes)])
+# 			# acum_ratios += close_neighbors_dist/found_neighbors_dist
+# 			navgby += 1
+# 		end
+# 		node_counters .= 0
+# 		# neighbornodes .= 0
+# 	end
+# 	return curratio/navgby
+# end
 
 ### 4. forest fire idea -- Shweta looking into this.
 

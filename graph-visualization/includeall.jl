@@ -22,6 +22,10 @@ using Tables
 using CSV
 using MAT
 using Distributed
+using StatsBase
+
+addprocs(100-nprocs())
+@everywhere using MatrixNetworks
 
 include("TuranShadow.jl")
 include("n2v.jl")

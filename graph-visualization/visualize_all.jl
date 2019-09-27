@@ -25,33 +25,35 @@ function visualize_all(filename,A,displayedges;labels=[],TSfunction=x->x,fromk=3
 
     @show mydims # these are the TSNE dimensions used.
     alltimes = zeros(6+3*length(mydims))
-    allmetrics = zeros(6+3*length(mydims),3)
+    allmetrics = zeros(6+3*length(mydims),5)
+    n = size(A,1)
+    pair_nodes = hcat(rand(1:n,10000),rand(1:n,10000));
 
 	## figure 1 - normalized laplacian
 	curtime = @elapsed x2,x3,l = x2_x3_from_spectral_embedding(A); 
     alltimes[1] = curtime
-    allmetrics[1,:] = evaluate_drawing(A,hcat(x2,x3))
+    allmetrics[1,:] = evaluate_drawing(A,hcat(x2,x3),pair_nodes)
 	my_plot_graph(A,hcat(x2,x3),displayedges;labels=labels)
 	savefig(join([filename,"_Laplacian_A.png"]))
 
 	##figure 2 - DRL
 	curtime = @elapsed xy_drl = igraph_layout(A,"drl"); 
     alltimes[2] = curtime
-    allmetrics[2,:] = evaluate_drawing(A,xy_drl)
+    allmetrics[2,:] = evaluate_drawing(A,xy_drl,pair_nodes)
 	my_plot_graph(A,xy_drl,displayedges;labels=labels)
 	savefig(join([filename,"_DRL.png"]))
 
     ##figure 3 - LGL
     # curtime = @elapsed xy_lgl = igraph_layout(A,"lgl"); 
     # alltimes[3] = curtime
-    # allmetrics[3,:] = evaluate_drawing(A,xy_lgl)
+    # allmetrics[3,:] = evaluate_drawing(A,xy_lgl,pair_nodes)
     # my_plot_graph(A,xy_lgl,displayedges;labels=labels)
     # savefig(join([filename,"_LGL.png"]))
 
 	##figure 4 - TuranShadow
 	curtime = @elapsed xyTR = TuranShadow_layout(A,TSfunction,fromk,tok,1,trialnb); 
     alltimes[4] = curtime
-    allmetrics[4,:] = evaluate_drawing(A,xyTR)
+    allmetrics[4,:] = evaluate_drawing(A,xyTR,pair_nodes)
 	my_plot_graph(A,xyTR,displayedges;labels=labels)
 	savefig(join([filename,"_LapTuranShadow.png"]))
 
@@ -67,7 +69,7 @@ function visualize_all(filename,A,displayedges;labels=[],TSfunction=x->x,fromk=3
     	pl_ni = my_plot_graph(A,xytsneL4[:,1:2],displayedges;labels=labels)
     	Plots.title!(join(["ndims = ",nd]),titlecolor=:black)
     	alltimes[4+ni] = curtime
-        allmetrics[4+ni,:] = evaluate_drawing(A,xytsneL4[:,1:2])
+        allmetrics[4+ni,:] = evaluate_drawing(A,xytsneL4[:,1:2],pair_nodes)
         savefig(join([filename,"_",nd,"_TSNE_LapA_.png"]))
     end
     # plot(pl[1],pl[2],pl[3],pl[4],layout=(2,2),size = (900,400))
@@ -83,7 +85,7 @@ function visualize_all(filename,A,displayedges;labels=[],TSfunction=x->x,fromk=3
     	pl_ni = my_plot_graph(A,xytsneL4[:,1:2],displayedges;labels=labels)
     	Plots.title!(join(["ndims = ",nd]))
     	alltimes[4+length(mydims)+ni] = curtime
-        allmetrics[4+length(mydims)+ni,:] = evaluate_drawing(A,xytsneL4[:,1:2])
+        allmetrics[4+length(mydims)+ni,:] = evaluate_drawing(A,xytsneL4[:,1:2],pair_nodes)
         savefig(join([filename,"_", nd,"_TSNE_LapTuranShadow_.png"]))
     end
     # plot(pl[1],pl[2],pl[3],pl[4],layout=(2,2),size = (900,400))
@@ -95,7 +97,7 @@ function visualize_all(filename,A,displayedges;labels=[],TSfunction=x->x,fromk=3
     my_plot_graph(A,xyN2V,displayedges;labels=labels)
     savefig(join([filename,"_N2V.png"]))
     alltimes[4+length(mydims)+length(mydims)+1] = curtime
-    allmetrics[4+length(mydims)+length(mydims)+1,:] = evaluate_drawing(A,xyN2V)
+    allmetrics[4+length(mydims)+length(mydims)+1,:] = evaluate_drawing(A,xyN2V,pair_nodes)
 
 
     # ## figure 7 - ecc from Shweta
@@ -105,7 +107,7 @@ function visualize_all(filename,A,displayedges;labels=[],TSfunction=x->x,fromk=3
     # my_plot_graph(A,xycoord,displayedges;labels=labels)
     # savefig(join([filename,"_ECC.png"]))
     # alltimes[4+length(mydims)+length(mydims)+2] = curtimeref
-    # allmetrics[4+length(mydims)+length(mydims)+2,:] = evaluate_drawing(A,xycoord)
+    # allmetrics[4+length(mydims)+length(mydims)+2,:] = evaluate_drawing(A,xycoord,pair_nodes)
 
     # ## figure 8
     # for (ni,nd) in enumerate(mydims)
@@ -116,7 +118,7 @@ function visualize_all(filename,A,displayedges;labels=[],TSfunction=x->x,fromk=3
     #     pl_ni = my_plot_graph(A,xytsneL4[:,1:2],displayedges;labels=labels)
     #     Plots.title!(join(["ndims = ",nd]))
     #     alltimes[6+length(mydims)+length(mydims)+ni] = curtime
-    #     allmetrics[6+length(mydims)+length(mydims)+ni,:] = evaluate_drawing(A,xytsneL4[:,1:2])
+    #     allmetrics[6+length(mydims)+length(mydims)+ni,:] = evaluate_drawing(A,xytsneL4[:,1:2],pair_nodes)
     #     savefig(join([filename,"_", nd,"_TSNE_Lap_ECC_TuranShadow_.png"]))
     # end
 
@@ -125,7 +127,8 @@ function visualize_all(filename,A,displayedges;labels=[],TSfunction=x->x,fromk=3
         "ECC","ECC-TSNE1", "ECC-TSNE2", "ECC-TSNE3"]
         methodstats = hcat(methods,alltimes,allmetrics)
 
-    CSV.write(join([filename,"_stats.txt"]),Tables.table(methodstats),header=["method","time","far_metric","close_metric","randomwalks_metric"])
+    CSV.write(join([filename,"_stats.txt"]),Tables.table(methodstats),header=["method","time","Kendall","Spearman",
+                                                                "closeness_metric","closeness_metric_weighted","randomwalks_metric"])
     # savefig(join([filename,"_alltimes.png"]))
     mycmd = `find . -name "$filename*" -exec mv "{}" ./visualization-results \;`
     Base.run(mycmd)
